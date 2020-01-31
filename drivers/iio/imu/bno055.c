@@ -83,6 +83,13 @@
 #define BNO055_OPT_ANDROID				"android"
 #define BNO055_OPT_AXIS_MAP				BNO055_OPT_PREFIX "axis-map"
 
+/*
+2020.01.31:NEB: Control device registration
+*/
+#define REGISTER_ACPI	TRUE
+#define REGISTER_I2C	TRUE
+#define REGISTER_OF		TRUE
+
 //#define USE_LOCK
 #if defined USE_LOCK
 #	define LOCK( l )		mutex_lock_interruptible( &l )
@@ -1576,25 +1583,51 @@ static int bno055_remove( struct i2c_client *client )
 	return 0;
 }
 
-static const struct acpi_device_id bno055_acpi_match[] = {
-	{ "bno055", 0 },
-	{},
-};
-MODULE_DEVICE_TABLE( acpi, bno055_acpi_match );
+#if REGISTER_ACPI
+	static const struct acpi_device_id bno055_acpi_match[] = {
+		{ BNO055_DRIVER_NAME, 0 },
+		{},
+	};
+	MODULE_DEVICE_TABLE( acpi, bno055_acpi_match );
+#endif // REGISTER_ACPI
 
-static const struct i2c_device_id bno055_id[] =
-{
-	{ "bno055", 0 },
-	{},
-};
-MODULE_DEVICE_TABLE( i2c, bno055_id );
+#if REGISTER_I2C
+	static const struct i2c_device_id bno055_id[] =
+	{
+		{ BNO055_DRIVER_NAME, 0 },
+		{},
+	};
+	MODULE_DEVICE_TABLE( i2c, bno055_id );
+#endif // REGISTER_I2C
+
+/*
+2020.01.31:NEB: an of_device_id table is required even if the driver
+doesn't register as an OF device.
+*/
+#if REGISTER_OF
+	static const struct of_device_id bno055_i2c_of_match[] =
+	{
+		{
+			.compatible = "bosch,bno055",
+			.data = BNO055_DRIVER_NAME
+		},
+		{ },
+	};
+	MODULE_DEVICE_TABLE(of, bno055_i2c_of_match);
+#endif // REGISTER_OF
 
 static struct i2c_driver bno055_driver =
 {
 	.driver =
 	{
 		.name	= BNO055_DRIVER_NAME,
-		.acpi_match_table = ACPI_PTR( bno055_acpi_match ),
+		.owner = THIS_MODULE,
+#		if REGISTER_OF
+			.of_match_table = bno055_i2c_of_match,
+#		endif // REGISTER_OF
+#		if REGISTER_ACPI
+			.acpi_match_table = ACPI_PTR( bno055_acpi_match ),
+#		endif // REGISTER_ACPI
 	},
 	.probe		= bno055_probe,
 	.remove		= bno055_remove,
